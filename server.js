@@ -18,6 +18,10 @@ app.use(express.json());
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+app.get("/", (req, res) => {    
+    res.send("Hello ,its working");
+});
+
 // Route for handling file uploads and PDF processing
 app.post('/upload', upload.array('resume', 10), async (req, res) => {
     try {
