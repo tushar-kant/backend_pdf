@@ -5,6 +5,8 @@ const pdf = require('pdf-parse');
 const path = require('path');
 const axios = require('axios');
 const mongoose = require('mongoose');
+const cors = require('cors');
+
 
 
 const query = 'PROGRAMMING,css';
@@ -13,6 +15,8 @@ const query = 'PROGRAMMING,css';
 const app = express();
 const port = process.env.PORT || 3030;
 app.use(express.json());
+// Enable CORS for all routes
+app.use(cors());
 
 // Multer storage configuration for handling file uploads
 const storage = multer.memoryStorage();
