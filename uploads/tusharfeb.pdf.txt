@@ -1,0 +1,77 @@
+
+
+EDUCATION
+Silicon Institute of Technology
+Bachelor of Technology
+07-2019 – 07-2023 | Bhubaneswar
+CGPA-7.94
+Shakti Higher secondary school
+Higher Secondary
+03-2017 – 04-2019 | Cuttack
+percentage-64
+Saraswati sisu vidya mandir,College square
+Secondary
+03-2007 – 04-2017 | Cuttack
+percentage-81
+PROFESSIONAL EXPERIENCE
+Silicon techlab pvt. ltd.
+Software engineer
+09-2023 – present | Bhubaneswar
+Currently Working on an adcommerse platform.
+Tools-Angular-js,Bootstrap,html,css
+A platform based on phygital concept.
+Silicon techlab pvt. ltd.
+Software Traine
+02-2023 – 06-2023
+Tools- AngularJS,Bootstrap,HTML5,CSS3
+Worked on a Adcommerse project where i made 
+responsive web pages.
+Syllogistek systems pvt. ltd.
+MEAN stack web development
+05-2021 – 07-2021 | Bhubaneswar
+-Get a complet understanding of web application 
+development.
+-Created a full stack contact manager web app .
+Tools-Angularjs,html5,css3,bootstrap
+ACHIVEMENTS
+Hackerrank skill badge- 5star in cpp
+Codechef-ranking-1583(ATH)
+Participated in Hacktoberfest 2021
+SKILLS
+PROGRAMMING LANGUAGES (C,C++, JavaScript,
+Solidity, TypeScript)
+LIBRARIES / FRAMEWORKS (Reactjs, Angularjs,
+NodeJS, Ethereum smart contract, Truffle, Bootstrap)
+TOOLS / PLATFORM (Git, Ganache, Blockchain,SVN)
+DATABASE (mongoDB)
+PROJECTS
+Decentralised banking system-using blockchain
+Using React-JS, Ethereum smart contract, truffle, 
+Bootstrap, HTML , CSS
+-A banking system in which anyone can stake there 
+ethereum ,earn intrest in the form of a new coin and 
+take there eth at any moment.
+one can borrow the staked eth and payoff it later.
+Decentragram-using block chain
+Using React-js, Ethereum smart contract, Truffle, 
+HTML, CSS, Bootstrap
+-A decentralised application where one can easily 
+share there image and also tip others image holders 
+address directly
+Crypto Price Tracker
+Using react, Bootstrap, HTML, CSS, Rest-api
+-A Website in which anyone can check crypto 
+price,exchange list and latest crypto new.
+COURSES
+Full stack web development using Django
+Silicon institute of technology
+NDG Linux Unhatched course
+Cisco Networking Academy
+Responsive Web Page Development
+E-box
+Python for beginners
+sololearn
+Introduction to C language
+sololearn
+Tusharkanta Nayak
+tusharkantanayak713@gmail.com6372305866cuttackLinkedInGithub

@@ -124,6 +124,33 @@ app.post('/search', (req, res) => {
         res.json({ results });
     });
 });
+app.get('/viewall', (req, res) => {
+    // Array to store all file names and download links
+    const results = [];
+
+    // Read all files from the 'uploads' directory
+    fs.readdir('uploads', (err, files) => {
+        if (err) {
+            console.error('Error reading files:', err);
+            res.status(500).json({ error: 'Internal Server Error' });
+            return;
+        }
+
+        // Loop through each file
+        files.forEach(file => {
+            // Check if the file has a ".pdf" extension
+            if (file.toLowerCase().endsWith('.pdf')) {
+                // Create download link for each PDF file
+                const downloadLink = `/download?file=${encodeURIComponent(file)}`;
+
+                results.push({ file, downloadLink });
+            }
+        });
+
+        // Send the list of all files with download links to the client
+        res.json({ results });
+    });
+});
 
 
 
