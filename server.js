@@ -9,6 +9,10 @@ const { time } = require('console');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const User = require('./models/user');
+const File = require('./models/file');
+const { GridFSBucket } = require('mongodb');
+
+
 require('dotenv').config(); // Load environment variables from .env file
 
 
@@ -93,22 +97,30 @@ app.post('/upload', upload.array('resume', 10), async (req, res) => {
             const data = await pdf(buffer);
             const text = data.text;
 
-            // Store the extracted text in local storage
-            const textFilePath = `uploads/${file.originalname}.txt`;
-            fs.writeFileSync(textFilePath, text);
+            // Store the original PDF file in MongoDB
+            const newFile = new File({
+                filename: file.originalname,
+                contentType: file.mimetype,
+                data: buffer
+            });
+            await newFile.save();
 
-            // Store the original PDF file
-            const pdfFilePath = `uploads/${file.originalname}`;
-            fs.writeFileSync(pdfFilePath, buffer);
+            // Store the extracted text in MongoDB
+            // const newTextFile = new File({
+            //     filename: `${file.originalname}.txt`,
+            //     contentType: 'text/plain',
+            //     data: Buffer.from(text, 'utf-8')
+            // });
+            // await newTextFile.save();
 
-            return { pdfFilePath, textFilePath };
+            return { pdfFile: newFile };
         });
 
         // Wait for all files to be processed
         const results = await Promise.all(filePromises);
 
         res.status(200).json({
-            message: 'PDFs and text extracted and stored locally.',
+            message: 'PDFs and text extracted and stored in MongoDB.',
             results: results
         });
     } catch (error) {
@@ -118,97 +130,87 @@ app.post('/upload', upload.array('resume', 10), async (req, res) => {
 });
 
 
-app.get('/download', (req, res) => {
-    const { file } = req.query;
-    const filePath = path.join(__dirname, 'uploads', file);
 
-    // Check if the file exists
-    if (!fs.existsSync(filePath)) {
-        res.status(404).json({ error: 'File not found' });
-        return;
+app.get('/download', async (req, res) => {
+    try {
+        const { file } = req.query;
+
+        // Find the file in MongoDB by filename
+        const foundFile = await File.findOne({ filename: file });
+
+        // If the file is not found, return a 404 error
+        if (!foundFile) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+
+        // Set the appropriate content type for the response
+        res.setHeader('Content-Type', foundFile.contentType);
+
+        // Set the Content-Disposition header to specify the file name
+        res.setHeader('Content-Disposition', `attachment; filename="${file}"`);
+
+        // Send the file data in the response
+        res.send(foundFile.data);
+    } catch (error) {
+        console.error('Error downloading file:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
-
-    // Set the appropriate content type for the response
-    res.setHeader('Content-Type', 'application/octet-stream');
-    // Set the Content-Disposition header to specify the file name
-    res.setHeader('Content-Disposition', `attachment; filename="${file}"`);
-
-    // Stream the file to the response
-    const fileStream = fs.createReadStream(filePath);
-    fileStream.pipe(res);
 });
 
-app.post('/search', (req, res) => {
+
+
+
+app.post('/search', async (req, res) => {
     const { queries } = req.body;
     console.log('Search queries:', queries);
 
+    try {
+        // Retrieve PDF files from MongoDB
+        const pdfFiles = await File.find({ contentType: 'application/pdf' });
 
+        // Array to store search results
+        const results = [];
 
-    // Convert queries to an array if it's a single value
-    const searchQueries = Array.isArray(queries) ? queries : [queries];
+        // Loop through each PDF file
+        for (const pdfFile of pdfFiles) {
+            // Extract text from the PDF file
+            const text = await pdf(pdfFile.data);
 
-    // Array to store search results
-    const results = [];
-
-    // Read all files from the 'uploads' directory
-    fs.readdir('uploads', (err, files) => {
-        if (err) {
-            console.error('Error reading files:', err);
-            res.status(500).json({ error: 'Internal Server Error' });
-            return;
-        }
-
-        // Loop through each file
-        files.forEach(file => {
-            // Read the content of each file
-            const filePath = path.join('uploads', file);
-            const content = fs.readFileSync(filePath, 'utf-8');
-
-            // Check if the content contains all the query keywords
-            // if (searchQueries.every(query => content.includes(query))) {
-            //     // Store file name and add a download link
-            //     const fileNameWithoutExtension = file.split('.').slice(0, -1).join('.');
-            //     const downloadLink = `/download?file=${encodeURIComponent(fileNameWithoutExtension)}`;
-            //     results.push({ file, downloadLink });
-            // }
-            if (searchQueries.every(query => content.toLowerCase().includes(query.toLowerCase()))) {
+            // Check if the text content contains all the query keywords
+            if (queries.every(query => text.text.toLowerCase().includes(query.toLowerCase()))) {
                 // Store file name and add a download link
-                const fileNameWithoutExtension = file.split('.').slice(0, -1).join('.');
-                const downloadLink = `/download?file=${encodeURIComponent(fileNameWithoutExtension)}`;
-                results.push({ file, downloadLink });
+                results.push({
+                    fileName: pdfFile.filename,
+                    downloadLink: `/download?file=${encodeURIComponent(pdfFile.filename)}`
+                });
             }
-        });
+        }
 
         // Send the search results to the client
         res.json({ results });
-    });
+    } catch (error) {
+        console.error('Error searching PDF files:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
 });
-app.get('/viewall', (req, res) => {
-    // Array to store all file names and download links
-    const results = [];
 
-    // Read all files from the 'uploads' directory
-    fs.readdir('uploads', (err, files) => {
-        if (err) {
-            console.error('Error reading files:', err);
-            res.status(500).json({ error: 'Internal Server Error' });
-            return;
-        }
+app.get('/viewall', async (req, res) => {
+    try {
+        // Retrieve all PDF files from MongoDB
+        const pdfFiles = await File.find({ contentType: 'application/pdf' });
 
-        // Loop through each file
-        files.forEach(file => {
-            // Check if the file has a ".pdf" extension
-            if (file.toLowerCase().endsWith('.pdf')) {
-                // Create download link for each PDF file
-                const downloadLink = `/download?file=${encodeURIComponent(file)}`;
+        // Map the PDF files to include download links
+        const results = pdfFiles.map(file => ({
+            filename: file.filename,
+            downloadLink: `/download?file=${encodeURIComponent(file.filename)}`
+        }));
 
-                results.push({ file, downloadLink });
-            }
-        });
-
-        // Send the list of all files with download links to the client
+        // Send the list of PDF files with download links to the client
         res.json({ results });
-    });
+    } catch (error) {
+        console.error('Error retrieving PDF files:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
 });
 
 
