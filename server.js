@@ -13,6 +13,7 @@ const File = require('./models/file');
 const { GridFSBucket } = require('mongodb');
 
 
+
 require('dotenv').config(); // Load environment variables from .env file
 
 
@@ -161,7 +162,7 @@ app.get('/download', async (req, res) => {
 
 
 app.post('/search', async (req, res) => {
-    const { queries } = req.body;
+    const { queries, searchOption } = req.body;
     console.log('Search queries:', queries);
 
     try {
@@ -177,12 +178,25 @@ app.post('/search', async (req, res) => {
             const text = await pdf(pdfFile.data);
 
             // Check if the text content contains all the query keywords
-            if (queries.every(query => text.text.toLowerCase().includes(query.toLowerCase()))) {
-                // Store file name and add a download link
-                results.push({
-                    fileName: pdfFile.filename,
-                    downloadLink: `/download?file=${encodeURIComponent(pdfFile.filename)}`
-                });
+            if (searchOption === 'allKeywords') {
+                // Check if the text content contains all the query keywords
+                if (queries.every(query => text.text.toLowerCase().includes(query.toLowerCase()))) {
+                    // Store file name and add a download link
+                    results.push({
+                        fileName: pdfFile.filename,
+                        downloadLink: `/download?file=${encodeURIComponent(pdfFile.filename)}`
+                    });
+                }
+            }
+            else if (searchOption === 'anyKeyword') {
+                // Check if the text content contains at least one common keyword
+                if (queries.some(query => text.text.toLowerCase().includes(query.toLowerCase()))) {
+                    // Store file name and add a download link
+                    results.push({
+                        fileName: pdfFile.filename,
+                        downloadLink: `/download?file=${encodeURIComponent(pdfFile.filename)}`
+                    });
+                }
             }
         }
 
