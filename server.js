@@ -5,12 +5,15 @@ const pdf = require('pdf-parse');
 const path = require('path');
 const axios = require('axios');
 const cors = require('cors');
-const { time } = require('console');
+const { time, log } = require('console');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const User = require('./models/user');
 const File = require('./models/file');
 const { GridFSBucket } = require('mongodb');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+
 
 
 
@@ -40,10 +43,19 @@ mongoose.connect(process.env.MONGODB_URI, {
     console.error("Error connecting to MongoDB Atlas", err);
 });
 
+
 // Multer storage configuration for handling file uploads
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
-
+// const transporter = nodemailer.createTransport({
+//     host: 'smtp.gmail.com',
+//     port: 587,
+//     secure: false,
+//     auth: {
+//       user: process.env.GMAIL_USER, // Use environment variable for Gmail email address
+//       pass: process.env.GMAIL_PASS, // Use environment variable for Gmail email password
+//     },
+//   });
 
 
 app.get("/", (req, res) => {
@@ -129,7 +141,66 @@ app.post('/upload', upload.array('resume', 10), async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+app.post('/forgot-password', async (req, res) => {
+    const { email } = req.body;
 
+    try {
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Generate reset token
+        const resetToken = crypto.randomBytes(20).toString('hex');
+        log(resetToken);
+        user.resetPasswordToken = resetToken;
+        // user.resetPasswordExpires = Date.now() + 3600000; // Token expires in 1 hour
+        await user.save();
+
+        // Send email with reset link
+        // Replace the placeholder EMAIL_RESET_LINK with the actual link to your reset password page
+        const resetLink = `http://localhost:5173/#/reset-password?token=${resetToken}`;
+        // await transporter.sendMail({
+        //     from: 'tushaarkantanayak@gmail.com',
+        //     to: email,
+        //     subject: 'Password Reset Request',
+        //     text: `You are receiving this email because you (or someone else) have requested the reset of the password for your account.\n\n`
+        //       + `Please click on the following link, or paste this into your browser to complete the process:\n\n`
+        //       + `${resetLink}\n\n`
+        //       + `If you did not request this, please ignore this email and your password will remain unchanged.\n`
+        //   });
+        // Send the email with the reset link to the user's email address
+
+        res.status(200).json({ resetToken });
+    } catch (error) {
+        console.error('Error during password reset request:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+app.post('/reset-password', async (req, res) => {
+    const { token, newPassword } = req.body;
+
+    try {
+        const user = await User.findOne({ resetPasswordToken: token });
+
+
+        if (!user) {
+            return res.status(400).json({ error: 'Invalid or expired token' });
+        }
+
+        // Update user's password
+        user.password = newPassword;
+        // Clear reset token and expiration
+        user.resetPasswordToken = undefined;
+        // user.resetPasswordExpires = undefined;
+        await user.save();
+
+        res.status(200).json({ message: 'Password reset successfully' });
+    } catch (error) {
+        console.error('Error during password reset:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
 
 
 app.get('/download', async (req, res) => {
