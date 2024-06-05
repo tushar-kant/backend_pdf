@@ -1,28 +1,27 @@
 const express = require('express');
 const multer = require('multer');
-const fs = require('fs');
 const pdf = require('pdf-parse');
-const path = require('path');
-const axios = require('axios');
 const cors = require('cors');
-const { time, log } = require('console');
+const { log } = require('console');
 const bodyParser = require('body-parser');
-const mongoose = require('mongoose');
-const User = require('./models/user');
-const File = require('./models/file');
-const { GridFSBucket } = require('mongodb');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const ExcelJS = require('exceljs');  // Add this line to import ExcelJS
 
+
+const User = require('./models/user');
+const File = require('./models/file');
+
+const connectDB = require('./config/database');
+const authRoutes = require('./routes/authRoutes');
+const fileRoutes = require('./routes/fileRoutes');
 
 
 
 require('dotenv').config(); // Load environment variables from .env file
 
-
-
-const query = 'PROGRAMMING,css';
-
+// Connect to MongoDB
+connectDB();
 
 const app = express();
 const port = process.env.PORT || 3030;
@@ -31,90 +30,68 @@ const port = process.env.PORT || 3030;
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-
 app.use(cors());
-
-mongoose.connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => {
-    console.log("Connected to MongoDB Atlas");
-}).catch((err) => {
-    console.error("Error connecting to MongoDB Atlas", err);
-});
 
 
 // Multer storage configuration for handling file uploads
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
-// const transporter = nodemailer.createTransport({
-//     host: 'smtp.gmail.com',
-//     port: 587,
-//     secure: false,
-//     auth: {
-//       user: process.env.GMAIL_USER, // Use environment variable for Gmail email address
-//       pass: process.env.GMAIL_PASS, // Use environment variable for Gmail email password
-//     },
-//   });
 
 
 app.get("/", (req, res) => {
     res.send("Hello ,its working");
 });
-app.post('/login', async (req, res) => {
-    const { username, password } = req.body;
-
-    try {
-        // Find user by username and password
-        const user = await User.findOne({ username, password });
-        if (user) {
-            res.status(200).json({ message: 'Login successful' });
-        } else {
-            res.status(401).json({ message: 'Invalid username or password' });
-        }
-    } catch (error) {
-        console.error('Error during login:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+app.use('/auth', authRoutes);
+app.use('/file', fileRoutes);
+function extractPhoneNo(text) {
+    const match = text.match(/Phone\s*(.*)/);
+    if (match) {
+        return match[1].trim();
+    } else {
+        // If "Phone" is not present, extract consecutive 10 numbers
+        const matchNumbers = text.match(/\d{10}/);
+        return matchNumbers ? matchNumbers[0] : 'Unknown';
     }
-});
-app.post('/register', async (req, res) => {
-    const { username, password, email } = req.body;
+}
 
-    try {
-        // Check if the username or email already exists
-        const existingUser = await User.findOne({ $or: [{ username }, { email }] });
-        if (existingUser) {
-            return res.status(400).json({ error: 'Username or email already exists' });
-        }
-
-        // Create a new user instance
-        const newUser = new User({ username, password, email });
-
-        // Save the new user to the database
-        await newUser.save();
-
-        res.status(201).json({ message: 'User registered successfully' });
-    } catch (error) {
-        console.error('Error during registration:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+function extractEmail(text) {
+    const match = text.match(/Email\s*(.*)/);
+    if (match) {
+        return match[1].trim();
+    } else {
+        // If "Email" is not present, extract anything with @gmail.com
+        const matchEmail = text.match(/\b[A-Za-z0-9._%+-]+@gmail\.com\b/);
+        return matchEmail ? matchEmail[0] : 'Unknown';
     }
-});
+}
 
 // Route for handling file uploads and PDF processing
 app.post('/upload', upload.array('resume', 10), async (req, res) => {
     try {
         // Extract text from PDF for each uploaded file
         const files = req.files;
+        const dob = req.body.dob; // Assuming DOB is sent in the request body
+        const ctc = req.body.ctc; // Assuming DOB is sent in the request body
+
+        const experience = req.body.experience; // Assuming experience is sent in the request body
         const filePromises = files.map(async (file) => {
             const buffer = file.buffer;
             const data = await pdf(buffer);
             const text = data.text;
-
+            console.log(text);
+            const phoneNo = extractPhoneNo(text); // Extract phone number
+            const email = extractEmail(text); // Extract email
+            console.log('Phone No:', phoneNo);
             // Store the original PDF file in MongoDB
             const newFile = new File({
                 filename: file.originalname,
                 contentType: file.mimetype,
-                data: buffer
+                data: buffer,
+                dob, // Storing DOB
+                experience,
+                phoneNo: phoneNo,
+                email: email,// Storing email
+                CTC: ctc
             });
             await newFile.save();
 
@@ -141,68 +118,6 @@ app.post('/upload', upload.array('resume', 10), async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-app.post('/forgot-password', async (req, res) => {
-    const { email } = req.body;
-
-    try {
-        const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        // Generate reset token
-        const resetToken = crypto.randomBytes(20).toString('hex');
-        log(resetToken);
-        user.resetPasswordToken = resetToken;
-        // user.resetPasswordExpires = Date.now() + 3600000; // Token expires in 1 hour
-        await user.save();
-
-        // Send email with reset link
-        // Replace the placeholder EMAIL_RESET_LINK with the actual link to your reset password page
-        const resetLink = `http://localhost:5173/#/reset-password?token=${resetToken}`;
-        // await transporter.sendMail({
-        //     from: 'tushaarkantanayak@gmail.com',
-        //     to: email,
-        //     subject: 'Password Reset Request',
-        //     text: `You are receiving this email because you (or someone else) have requested the reset of the password for your account.\n\n`
-        //       + `Please click on the following link, or paste this into your browser to complete the process:\n\n`
-        //       + `${resetLink}\n\n`
-        //       + `If you did not request this, please ignore this email and your password will remain unchanged.\n`
-        //   });
-        // Send the email with the reset link to the user's email address
-
-        res.status(200).json({ resetToken });
-    } catch (error) {
-        console.error('Error during password reset request:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-app.post('/reset-password', async (req, res) => {
-    const { token, newPassword } = req.body;
-
-    try {
-        const user = await User.findOne({ resetPasswordToken: token });
-
-
-        if (!user) {
-            return res.status(400).json({ error: 'Invalid or expired token' });
-        }
-
-        // Update user's password
-        user.password = newPassword;
-        // Clear reset token and expiration
-        user.resetPasswordToken = undefined;
-        // user.resetPasswordExpires = undefined;
-        await user.save();
-
-        res.status(200).json({ message: 'Password reset successfully' });
-    } catch (error) {
-        console.error('Error during password reset:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-
 app.get('/download', async (req, res) => {
     try {
         const { file } = req.query;
@@ -228,49 +143,49 @@ app.get('/download', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-
-
-
 app.post('/search', async (req, res) => {
-    const { queries, searchOption } = req.body;
+    const { queries, searchOption, experience, ctc } = req.body; // Include experience and ctc in the request body
     console.log('Search queries:', queries);
-
     try {
-        // Retrieve PDF files from MongoDB
         const pdfFiles = await File.find({ contentType: 'application/pdf' });
-
-        // Array to store search results
         const results = [];
-
-        // Loop through each PDF file
         for (const pdfFile of pdfFiles) {
-            // Extract text from the PDF file
             const text = await pdf(pdfFile.data);
+            let isMatched = true; // Flag to check if the document matches all filters
 
             // Check if the text content contains all the query keywords
             if (searchOption === 'allKeywords') {
-                // Check if the text content contains all the query keywords
-                if (queries.every(query => text.text.toLowerCase().includes(query.toLowerCase()))) {
-                    // Store file name and add a download link
-                    results.push({
-                        fileName: pdfFile.filename,
-                        downloadLink: `/download?file=${encodeURIComponent(pdfFile.filename)}`
-                    });
+                if (!queries.every(query => text.text.toLowerCase().includes(query.toLowerCase()))) {
+                    isMatched = false; // If any query keyword is not found, set isMatched to false
+                }
+            } else if (searchOption === 'anyKeyword') {
+                if (!queries.some(query => text.text.toLowerCase().includes(query.toLowerCase()))) {
+                    isMatched = false; // If none of the query keywords is found, set isMatched to false
                 }
             }
-            else if (searchOption === 'anyKeyword') {
-                // Check if the text content contains at least one common keyword
-                if (queries.some(query => text.text.toLowerCase().includes(query.toLowerCase()))) {
-                    // Store file name and add a download link
-                    results.push({
-                        fileName: pdfFile.filename,
-                        downloadLink: `/download?file=${encodeURIComponent(pdfFile.filename)}`
-                    });
+            if (experience) {
+                if (parseInt(pdfFile.experience) < parseInt(experience)) {
+                    console.log('Experience:', pdfFile.experience, 'Query Experience:', experience);
+                    isMatched = false;
                 }
+            }
+            
+
+            if (ctc) {
+                if (parseInt(pdfFile.CTC) > parseInt(ctc)) {
+                    console.log('CTC:', pdfFile.CTC, 'Query CTC:', ctc);
+                    isMatched = false;
+                }
+            }
+            
+            // If all filters are matched, add document to results
+            if (isMatched) {
+                results.push({
+                    fileName: pdfFile.filename,
+                    downloadLink: `/download?file=${encodeURIComponent(pdfFile.filename)}`
+                });
             }
         }
-
         // Send the search results to the client
         res.json({ results });
     } catch (error) {
@@ -279,80 +194,197 @@ app.post('/search', async (req, res) => {
     }
 });
 
-app.get('/viewall', async (req, res) => {
+// app.post('/search', async (req, res) => {
+//     const { queries, searchOption } = req.body;
+//     console.log('Search queries:', queries);
+
+//     try {
+//         // Retrieve PDF files from MongoDB
+//         const pdfFiles = await File.find({ contentType: 'application/pdf' });
+
+//         // Array to store search results
+//         const results = [];
+
+//         // Loop through each PDF file
+//         for (const pdfFile of pdfFiles) {
+//             // Extract text from the PDF file
+//             const text = await pdf(pdfFile.data);
+
+//             // Check if the text content contains all the query keywords
+//             if (searchOption === 'allKeywords') {
+//                 // Check if the text content contains all the query keywords
+//                 if (queries.every(query => text.text.toLowerCase().includes(query.toLowerCase()))) {
+//                     // Store file name and add a download link
+//                     results.push({
+//                         fileName: pdfFile.filename,
+//                         downloadLink: `/download?file=${encodeURIComponent(pdfFile.filename)}`
+//                     });
+//                 }
+//             }
+//             else if (searchOption === 'anyKeyword') {
+//                 // Check if the text content contains at least one common keyword
+//                 if (queries.some(query => text.text.toLowerCase().includes(query.toLowerCase()))) {
+//                     // Store file name and add a download link
+//                     results.push({
+//                         fileName: pdfFile.filename,
+//                         downloadLink: `/download?file=${encodeURIComponent(pdfFile.filename)}`
+//                     });
+//                 }
+//             }
+//         }
+
+//         // Send the search results to the client
+//         res.json({ results });
+//     } catch (error) {
+//         console.error('Error searching PDF files:', error);
+//         res.status(500).json({ error: 'Internal Server Error' });
+//     }
+// });
+function extractName(text) {
+    const match = text.match(/^\s*(\S+\s+\S+)/); // Match the first two non-space words
+    return match ? match[1].trim() : 'Unknown';
+}
+
+
+function extractIndustry(text) {
+    const match = text.match(/Industry\s*(.*)/);
+    return match ? match[1].trim() : 'Unknown';
+}
+
+function extractOrgLast(text) {
+    const match = text.match(/PROFESSIONAL EXPERIENCE(?:.|\n)*?Project Name\s*:\s*(.*)/);
+    return match ? match[1].trim() : 'Unknown';
+}
+
+function extractPosition(text) {
+    const match = text.match(/WORK EXPERIENCE(?:.|\n)*?Project Role\s*:\s*(.*)/);
+    return match ? match[1].trim() : 'Unknown';
+}
+
+function extractLocation(text) {
+    const match = text.match(/(?:Place|Address)\s*(.*)/);
+    return match ? match[1].trim() : 'Unknown';
+}
+
+function extractCtc(text) {
+    const match = text.match(/CTC \s*(.*)/);
+    return match ? match[1].trim() : 'Unknown';
+}
+
+
+
+
+app.post('/download-excel', async (req, res) => {
+    const { queries, searchOption, experience, ctc } = req.body;
+
     try {
-        // Retrieve all PDF files from MongoDB
         const pdfFiles = await File.find({ contentType: 'application/pdf' });
 
-        // Map the PDF files to include download links
-        const results = pdfFiles.map(file => ({
-            filename: file.filename,
-            downloadLink: `/download?file=${encodeURIComponent(file.filename)}`
-        }));
+        const results = [];
 
-        // Send the list of PDF files with download links to the client
-        res.json({ results });
+        for (const pdfFile of pdfFiles) {
+            const text = await pdf(pdfFile.data);
+            let isMatched = true; // Flag to check if the document matches all filters
+
+            // const name = extractName(text.text);
+            const industry = extractIndustry(text.text);
+            const orgLast = extractOrgLast(text.text);
+            const position = extractPosition(text.text);
+            const location = extractLocation(text.text);
+            const ctc = extractCtc(text.text);
+            if (searchOption === 'allKeywords') {
+                if (!queries.every(query => text.text.toLowerCase().includes(query.toLowerCase()))) {
+                    isMatched = false; // If any query keyword is not found, set isMatched to false
+                }
+            } else if (searchOption === 'anyKeyword') {
+                if (!queries.some(query => text.text.toLowerCase().includes(query.toLowerCase()))) {
+                    isMatched = false; // If none of the query keywords is found, set isMatched to false
+                }
+            }
+            if (experience && parseInt(pdfFile.experience) > parseInt(experience)) {
+                console.log('Experience:', pdfFile.experience, 'Query Experience:', experience);
+                isMatched = false;
+            }
+            
+
+            // Check if CTC filter is provided and document meets the criteria
+            if (ctc && parseInt(pdfFile.CTC) < parseInt(ctc)) {
+                console.log('CTC:', pdfFile.CTC, 'Query CTC:', ctc);
+                isMatched = false;
+            }
+            if (isMatched) {
+                results.push({
+                    fileName: pdfFile.filename,
+                    experience: pdfFile.experience,
+                    phone_no: pdfFile.phoneNo,
+                    email: pdfFile.email,
+                    dob: pdfFile.dob,
+                    location: extractLocation(text.text),
+                    ctc: pdfFile.CTC
+                });
+            }
+        }
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Search Results');
+
+        worksheet.columns = [
+            { header: 'PDF Name', key: 'fileName', width: 30 },
+            { header: 'Experience', key: 'experience', width: 30 },
+            { header: 'Phone No', key: 'phone_no', width: 30 },
+            { header: 'Email', key: 'email', width: 30 },
+            { header: 'DOB', key: 'dob', width: 30 },
+            { header: 'Location', key: 'location', width: 30 },
+            { header: 'CTC', key: 'ctc', width: 30 }
+
+        ];
+        results.forEach(result => {
+            worksheet.addRow(result);
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=search_results.xlsx');
+
+        await workbook.xlsx.write(res);
+        res.end();
     } catch (error) {
-        console.error('Error retrieving PDF files:', error);
+        console.error('Error generating Excel file:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-
-
 const dummyData = [
-
-    { station: 'Station A', passenger_count: 50, time: '13:03:00' },
-    { station: 'Station B', passenger_count: 60, time: '13:03:10' },
-    { station: 'Station C', passenger_count: 70, time: '13:03:20' },
-    { station: 'Station D', passenger_count: 55, time: '13:03:30' },
-    { station: 'Station E', passenger_count: 45, time: '13:03:40' },
-    { station: 'Station F', passenger_count: 40, time: '13:03:50' },
-    { station: 'Station G', passenger_count: 65, time: '13:04:00' },
-    { station: 'Station H', passenger_count: 75, time: '13:04:20' },
-    { station: 'Station I', passenger_count: 80, time: '13:04:40' },
-    { station: 'Station J', passenger_count: 70, time: '13:04:50' },
-    { station: 'Station I', passenger_count: 60, time: '13:04:58' },
-    // { station: 'Station J', passenger_count: 50, time: '13:18:00' },
-    // { station: 'Station K', passenger_count: 40, time: '13:18:10' },
-    // { station: 'Station L', passenger_count: 35, time: '13:18:20' },
-    // { station: 'Station M', passenger_count: 30, time: '13:18:30' },
-    // { station: 'Station N', passenger_count: 25, time: '13:18:40' },
-    // { station: 'Station O', passenger_count: 20, time: '13:18:50' },
-    // { station: 'Station P', passenger_count: 13, time: '13:19:00' },
-    // { station: 'Station Q', passenger_count: 10, time: '13:19:10' },
-    // { station: 'Station R', passenger_count: 55, time: '13:19:20' },
-    // { station: 'Station S', passenger_count: 34, time: '13:19:30' },
-    // { station: 'Station T', passenger_count: 60, time: '13:19:40' },
-    // { station: 'Station U', passenger_count: 30, time: '15:19:50' },
-    // { station: 'Station V', passenger_count: 10, time: '15:20:00' },
-    // { station: 'Station W', passenger_count: 80, time: '15:20:10' },
-    // { station: 'Station X', passenger_count: 55, time: '15:20:20' },
-    // { station: 'Station Y', passenger_count: 60, time: '15:20:30' },
-    // { station: 'Station Z', passenger_count: 25, time: '15:20:40' },
+    { station: 'Station A', passenger_count: 50, time: '15:45:00' },
+    { station: 'Station B', passenger_count: 60, time: '15:45:10' },
+    { station: 'Station C', passenger_count: 70, time: '15:45:20' },
+    { station: 'Station D', passenger_count: 55, time: '15:45:30' },
+    { station: 'Station E', passenger_count: 45, time: '15:45:40' },
+    { station: 'Station F', passenger_count: 40, time: '15:45:50' },
+    { station: 'Station G', passenger_count: 65, time: '15:46:00' },
+    { station: 'Station H', passenger_count: 75, time: '15:46:10' },
+    { station: 'Station I', passenger_count: 80, time: '15:46:20' },
+    { station: 'Station J', passenger_count: 70, time: '15:46:30' },
+    { station: 'Station K', passenger_count: 60, time: '15:46:40' },
+    { station: 'Station L', passenger_count: 55, time: '15:46:50' },
+    { station: 'Station M', passenger_count: 45, time: '15:47:00' },
+    { station: 'Station N', passenger_count: 40, time: '15:47:10' },
+    { station: 'Station O', passenger_count: 65, time: '15:47:20' },
 
     // Add more stations and passenger counts as needed
 ];
 
-
 let dataIndex = 0;
-
 // Array of timings in ascending order
 const timings = dummyData.map(entry => entry.time);
-
-
 // API endpoint to serve one data entry at a time
 app.get('/api/metro-data', (req, res) => {
     // Get the current time in 'hh:mm:ss' format
     const currentTime = new Date().toLocaleTimeString('en-US', { hour12: false });
-
-
     // Get the dataset values for the current time
     const datasetValues = getDatasetForTime(currentTime, timings);
-
     // Create the current data entry
     const currentData = {
-        station: 'Station ' + (datasetValues.indexOf(Math.max(...datasetValues)) + 1), // Get the station with maximum passengers
+        station: 'Station ' + (datasetValues.indexOf(Math.max(...datasetValues))), // Get the station with maximum passengers
         passenger_count: Math.max(...datasetValues),
         time: currentTime
     };
@@ -361,7 +393,6 @@ app.get('/api/metro-data', (req, res) => {
     res.json(currentData);
     console.log('Served data:', currentData);
 });
-
 // Function to get dataset values for the current time
 function getDatasetForTime(currentTime, timings) {
     for (let i = 0; i < timings.length; i++) {
@@ -372,7 +403,6 @@ function getDatasetForTime(currentTime, timings) {
     }
     return [0, 0, 0, 0, 0];
 }
-
 // Function to get dataset values based on index
 function getDatasetValuesForTime(index) {
     const datasetValues = [];
@@ -385,8 +415,6 @@ function getDatasetValuesForTime(index) {
     }
     return datasetValues;
 }
-
-
 
 // Start the server
 app.listen(port, () => {

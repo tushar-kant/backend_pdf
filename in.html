@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metro Project Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <canvas id="metroChart" width="800" height="400"></canvas>
+
+    <script>
+        const maxValues = 5;
+        const chart = new Chart('metroChart', {
+            type: "bar",
+            responsive: true,
+            maintainAspectRatio: false,
+            data: {
+                labels: [],
+                datasets: [{
+                    label: "Passenger Count",
+                    data: [],
+                    fill: true,
+                    backgroundColor: "lightblue",
+                    borderColor: "lightblue",
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                legend: {
+                    display: true,
+                    position: 'bottom'
+                },
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            min: 0,
+                            stepSize: 10
+                        }
+                    }]
+                }
+            }
+        });
+
+
+        setInterval(() => {
+            fetch('http://localhost:3030/api/metro-data')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Log the fetched data
+                    console.log('Fetched data:', data);
+
+                    // Clear previous data
+                    // chart.data.labels = [];
+                    // chart.data.datasets[0].data = [];
+                    const existingIndex = chart.data.labels.indexOf(data.station);
+                    if (existingIndex !== -1) {
+                        // Remove existing entry
+                        chart.data.labels.splice(existingIndex, 1);
+                        chart.data.datasets[0].data.splice(existingIndex, 1);
+                    }
+                    // Update chart with new data
+                    chart.data.labels.push(data.station);
+                    chart.data.datasets[0].data.push(data.passenger_count);
+
+                    // Remove excess data points if more than maxValues
+                    console.log('Updated chart data:', chart.data);
+                    while (chart.data.labels.length > maxValues) {
+                        chart.data.labels.shift();
+                        chart.data.datasets[0].data.shift();
+                    }
+                    // Update the chart
+                    chart.update();
+
+                })
+                .catch(error => console.error('Error fetching data:', error));
+
+
+            console.log(chart.data.labels);
+            console.log(chart.data.datasets[0].data);
+
+        }, 5000);
+    </script>
+</body>
+
+</html>
