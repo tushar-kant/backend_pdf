@@ -70,15 +70,18 @@ app.post('/upload', upload.array('resume', 10), async (req, res) => {
     try {
         // Extract text from PDF for each uploaded file
         const files = req.files;
-        const dob = req.body.dob; // Assuming DOB is sent in the request body
-        const ctc = req.body.ctc; // Assuming DOB is sent in the request body
+   
 
         const experience = req.body.experience; // Assuming experience is sent in the request body
-        const filePromises = files.map(async (file) => {
+        const filePromises = files.map(async (file,index) => {
             const buffer = file.buffer;
             const data = await pdf(buffer);
             const text = data.text;
             console.log(text);
+            const dob = req.body[`dob_${index}`];
+            const experience = req.body[`experience_${index}`];
+            const ctc = req.body[`ctc_${index}`];
+
             const phoneNo = extractPhoneNo(text); // Extract phone number
             const email = extractEmail(text); // Extract email
             console.log('Phone No:', phoneNo);
@@ -291,7 +294,7 @@ app.post('/download-excel', async (req, res) => {
             const orgLast = extractOrgLast(text.text);
             const position = extractPosition(text.text);
             const location = extractLocation(text.text);
-            const ctc = extractCtc(text.text);
+            // const ctc = extractCtc(text.text);
             if (searchOption === 'allKeywords') {
                 if (!queries.every(query => text.text.toLowerCase().includes(query.toLowerCase()))) {
                     isMatched = false; // If any query keyword is not found, set isMatched to false
@@ -301,16 +304,21 @@ app.post('/download-excel', async (req, res) => {
                     isMatched = false; // If none of the query keywords is found, set isMatched to false
                 }
             }
-            if (experience && parseInt(pdfFile.experience) > parseInt(experience)) {
-                console.log('Experience:', pdfFile.experience, 'Query Experience:', experience);
-                isMatched = false;
+            if (experience) {
+                if (parseInt(pdfFile.experience) < parseInt(experience)) {
+                    console.log('Experience:', pdfFile.experience, 'Query Experience:', experience);
+                    isMatched = false;
+                }
             }
+            
             
 
             // Check if CTC filter is provided and document meets the criteria
-            if (ctc && parseInt(pdfFile.CTC) < parseInt(ctc)) {
-                console.log('CTC:', pdfFile.CTC, 'Query CTC:', ctc);
-                isMatched = false;
+            if (ctc) {
+                if (parseInt(pdfFile.CTC) > parseInt(ctc)) {
+                    console.log('CTC:', pdfFile.CTC, 'Query CTC:', ctc);
+                    isMatched = false;
+                }
             }
             if (isMatched) {
                 results.push({
