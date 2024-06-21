@@ -43,29 +43,154 @@ app.get("/", (req, res) => {
 });
 app.use('/auth', authRoutes);
 app.use('/file', fileRoutes);
+function extractFirstLine(text) {
+    // Split text into lines
+    const lines = text.split('\n');
+
+    // Find the first line that contains text
+    const firstLine = lines.find(line => line.trim() !== '');
+
+    // Return the first non-empty line, trimmed
+    return firstLine ? firstLine.trim() : '';
+}
+
+
+
 function extractPhoneNo(text) {
-    const match = text.match(/Phone\s*(.*)/);
+    const match = text.match(/Phone\s*:\s*(\+?\d[\d\s-]{7,}\d)/i);
     if (match) {
         return match[1].trim();
     } else {
-        // If "Phone" is not present, extract consecutive 10 numbers
-        const matchNumbers = text.match(/\d{10}/);
+        const matchNumbers = text.match(/\+?\d[\d\s-]{7,}\d/);
         return matchNumbers ? matchNumbers[0] : 'Unknown';
     }
 }
 
 function extractEmail(text) {
-    const match = text.match(/Email\s*(.*)/);
-    if (match) {
-        return match[1].trim();
-    } else {
-        // If "Email" is not present, extract anything with @gmail.com
-        const matchEmail = text.match(/\b[A-Za-z0-9._%+-]+@gmail\.com\b/);
-        return matchEmail ? matchEmail[0] : 'Unknown';
+    const match = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
+    return match ? match[0].trim() : 'Unknown';
+}
+function extractCurrentCompany(text) {
+    // Regular expression pattern to find the section containing professional experience
+    const sectionPattern = /(?:PROFESSIONAL EXPERIENCE|ORGANIZATIONS|Employment scan|WORK EXPERIENCE)([\s\S]*?)(?:EXPERIENCE\s+SUMMARY|$)/i;
+    const sectionMatch = text.match(sectionPattern);
+// console.log(sectionMatch);
+    if (sectionMatch) {
+        const sectionText = sectionMatch[1]; // Extract the text from the matched section
+
+        // Regular expression pattern to match company name and timeframe
+        const companyPattern = /([^\n\r]+?)\s+from\s+(\d{1,2}(?:th)?\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?|\d{1,2}\/\d{1,2}\/\d{2,4}))?\s*(?:-|to)\s*(Present|\d{1,2}(?:th)?\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?|\d{1,2}\/\d{1,2}\/\d{2,4}))/ig;
+
+        let currentCompany = { name: 'Unknown', timeframe: '' };
+        let matchCompany;
+
+        // Iterate through matches to find the most recent company
+        while ((matchCompany = companyPattern.exec(sectionText)) !== null) {
+            const companyName = matchCompany[1].trim();
+            const timeframe = matchCompany[2] ? matchCompany[2].trim() : matchCompany[3].trim();
+
+            // Check if this is a current or most recent company based on timeframe
+            if (timeframe.toLowerCase().includes('present') || 
+                currentCompany.timeframe < timeframe ||
+                currentCompany.name === 'Unknown') {
+                currentCompany = {
+                    name: companyName,
+                    timeframe: timeframe
+                };
+            }
+        }
+
+        return currentCompany;
     }
+
+    return { name: 'Unknown', timeframe: '' };
 }
 
-// Route for handling file uploads and PDF processing
+
+
+function extractPreviousCompany(text) {
+    const currentCompanyInfo = extractCurrentCompany(text);
+    const currentCompanyIndex = text.indexOf(currentCompanyInfo.name);
+    const textAfterCurrentCompany = text.slice(currentCompanyIndex + currentCompanyInfo.name.length);
+
+    const previousCompanyPattern = /Company\s*:\s*(.*?)(\d{4})\s*-\s*(\d{4})/ig;
+    let previousCompany = { name: 'Unknown', timeframe: [] };
+    let match;
+    while ((match = previousCompanyPattern.exec(textAfterCurrentCompany)) !== null) {
+        const companyName = match[1].trim();
+        const years = [match[2], match[3]];
+        if (years[1] < currentCompanyInfo.timeframe[0]) {
+            previousCompany = {
+                name: companyName,
+                timeframe: years
+            };
+            break; // Assuming we need the first previous company found
+        }
+    }
+    return previousCompany.name;
+}
+
+
+function extractExperience(text) {
+    // Regular expression pattern to find numbers near "experience"
+    const nearExperiencePattern = /(?:\b\d+\b\s*(?:\+)?\s*(?:years?|yrs?))/ig;
+    
+    // Find all matches near "experience"
+    let closestMatch = null;
+    let closestDistance = Infinity;
+
+    let match;
+    while ((match = nearExperiencePattern.exec(text)) !== null) {
+        // Calculate distance from "experience"
+        const distance = Math.abs(match.index - text.toLowerCase().indexOf('experience'));
+
+        // Update closest match if this one is closer
+        if (distance < closestDistance) {
+            closestMatch = match[0];
+            closestDistance = distance;
+        }
+    }
+
+    if (closestMatch) {
+        return closestMatch.trim();
+    }
+
+    return 'Unknown'; // Return 'Unknown' if no experience-related number is found
+}
+
+function extractCTC(text) {
+    // Regular expression pattern to match CTC formats
+    const ctcPattern = /(?:CTC|Current Total Compensation|Current CTC)\s*:\s*(?:Rs\s*)?(\d{1,3}(?:,?\d{3})*\.?\d*)/i;
+
+    // Attempt to match the pattern in the text
+    const match = text.match(ctcPattern);
+    if (match) {
+        // Extracted CTC value, removing commas and converting to a numeric format
+        const ctcValue = match[1].replace(/,/g, '');
+        return parseFloat(ctcValue).toFixed(2); // Convert to float and fix to 2 decimal places
+    }
+
+    return 'Unknown'; // Return 'Unknown' if no CTC is found
+}
+function extractDOB(text) {
+    // Regular expression pattern to match "Date of Birth" or "DOB" followed by 3 lines
+    const dobPattern = /(?:Date\s*of\s*Birth|DOB)\s*:\s*(.*?)(?:\n|$)/i;
+
+    // Attempt to match the pattern in the text
+    const match = text.match(dobPattern);
+    if (match) {
+        // Extracted content after DOB
+        const lines = text.split('\n');
+        const startIndex = lines.findIndex(line => line.match(dobPattern));
+        if (startIndex !== -1) {
+            // Extract the next 3 lines after the line containing DOB, concatenate them without adding newlines
+            const extractedLines = lines.slice(startIndex + 0, startIndex + 3);
+            return extractedLines.join(' ').trim();
+        }
+    }
+
+    return 'Unknown'; // Return 'Unknown' if no DOB line is found
+}
 app.post('/upload', upload.array('resume', 10), async (req, res) => {
     try {
         // Extract text from PDF for each uploaded file
@@ -77,14 +202,18 @@ app.post('/upload', upload.array('resume', 10), async (req, res) => {
             const buffer = file.buffer;
             const data = await pdf(buffer);
             const text = data.text;
-            console.log(text);
-            const dob = req.body[`dob_${index}`];
-            const experience = req.body[`experience_${index}`];
-            const ctc = req.body[`ctc_${index}`];
+            // console.log(text);
+            const dob = extractDOB(text);
+            console.log(dob);
+            const experience = extractExperience(text);
+            const ctc = extractCTC(text);
 
             const phoneNo = extractPhoneNo(text); // Extract phone number
             const email = extractEmail(text); // Extract email
-            console.log('Phone No:', phoneNo);
+            // console.log('Phone No:', phoneNo);
+            const currentCompany = extractCurrentCompany(text).name;
+            const previousCompany = extractPreviousCompany(text);
+            const name = extractFirstLine(text);
             // Store the original PDF file in MongoDB
             const newFile = new File({
                 filename: file.originalname,
@@ -94,8 +223,13 @@ app.post('/upload', upload.array('resume', 10), async (req, res) => {
                 experience,
                 phoneNo: phoneNo,
                 email: email,// Storing email
-                CTC: ctc
+                CTC: ctc,
+                currentCompany,
+                previousCompany,
+                name
+                
             });
+            console.log("new",newFile);
             await newFile.save();
 
             // Store the extracted text in MongoDB
@@ -243,38 +377,26 @@ app.post('/search', async (req, res) => {
 //         res.status(500).json({ error: 'Internal Server Error' });
 //     }
 // });
-function extractName(text) {
-    const match = text.match(/^\s*(\S+\s+\S+)/); // Match the first two non-space words
+const extractName = (text) => {
+    const match = text.match(/^\s*(\S+\s+\S+)/);
     return match ? match[1].trim() : 'Unknown';
-}
+};
 
 
-function extractIndustry(text) {
-    const match = text.match(/Industry\s*(.*)/);
+const extractOrgLast = (text) => {
+    const match = text.match(/(?:PROFESSIONAL EXPERIENCE|ORGANIZATIONS|Employment scan|WORK EXPERIENCE)(?:.|\n)*?Project Name\s*:\s*(.*?)(?:\n|$)/i);
     return match ? match[1].trim() : 'Unknown';
-}
+};
 
-function extractOrgLast(text) {
-    const match = text.match(/PROFESSIONAL EXPERIENCE(?:.|\n)*?Project Name\s*:\s*(.*)/);
+const extractPosition = (text) => {
+    const match = text.match(/(?:PROFESSIONAL EXPERIENCE|ORGANIZATIONS|Employment scan|WORK EXPERIENCE)(?:.|\n)*?Project Role\s*:\s*(.*?)(?:\n|$)/i);
     return match ? match[1].trim() : 'Unknown';
-}
+};
 
-function extractPosition(text) {
-    const match = text.match(/WORK EXPERIENCE(?:.|\n)*?Project Role\s*:\s*(.*)/);
+const extractLocation = (text) => {
+    const match = text.match(/(?:Place|Address|Location)\s*:\s*(.*?)(?:\n|$)/i);
     return match ? match[1].trim() : 'Unknown';
-}
-
-function extractLocation(text) {
-    const match = text.match(/(?:Place|Address)\s*(.*)/);
-    return match ? match[1].trim() : 'Unknown';
-}
-
-function extractCtc(text) {
-    const match = text.match(/CTC \s*(.*)/);
-    return match ? match[1].trim() : 'Unknown';
-}
-
-
+};
 
 
 app.post('/download-excel', async (req, res) => {
@@ -289,11 +411,12 @@ app.post('/download-excel', async (req, res) => {
             const text = await pdf(pdfFile.data);
             let isMatched = true; // Flag to check if the document matches all filters
 
-            // const name = extractName(text.text);
-            const industry = extractIndustry(text.text);
+            const name = extractName(text.text);
             const orgLast = extractOrgLast(text.text);
             const position = extractPosition(text.text);
             const location = extractLocation(text.text);
+            console.log('Extracted information from PDF:', { name, orgLast, position, location });
+
             // const ctc = extractCtc(text.text);
             if (searchOption === 'allKeywords') {
                 if (!queries.every(query => text.text.toLowerCase().includes(query.toLowerCase()))) {
@@ -310,8 +433,6 @@ app.post('/download-excel', async (req, res) => {
                     isMatched = false;
                 }
             }
-            
-            
 
             // Check if CTC filter is provided and document meets the criteria
             if (ctc) {
@@ -327,8 +448,11 @@ app.post('/download-excel', async (req, res) => {
                     phone_no: pdfFile.phoneNo,
                     email: pdfFile.email,
                     dob: pdfFile.dob,
-                    location: extractLocation(text.text),
-                    ctc: pdfFile.CTC
+                    ctc: pdfFile.CTC,
+                    orgLast: orgLast,
+                    position: position,
+                    location: location,
+                    name:name
                 });
             }
         }
@@ -342,8 +466,11 @@ app.post('/download-excel', async (req, res) => {
             { header: 'Phone No', key: 'phone_no', width: 30 },
             { header: 'Email', key: 'email', width: 30 },
             { header: 'DOB', key: 'dob', width: 30 },
+            { header: 'CTC', key: 'ctc', width: 30 },
+            { header: 'Organization Last', key: 'orgLast', width: 30 },
+            { header: 'Position', key: 'position', width: 30 },
             { header: 'Location', key: 'location', width: 30 },
-            { header: 'CTC', key: 'ctc', width: 30 }
+            { header: 'Name', key: 'name', width: 30 }
 
         ];
         results.forEach(result => {

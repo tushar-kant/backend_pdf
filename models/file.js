@@ -10,7 +10,10 @@ const fileSchema = new mongoose.Schema({
     experience: String, // Adding experience field
     email: String, // Adding email field
     phoneNo: String, // Adding phone field
-    CTC:String
+    CTC:String,
+    currentCompany: String,
+    previousCompany: String,
+    name: String,
 }, { timestamps: true }); // Add timestamps option
 
 const File = mongoose.model('File', fileSchema);
