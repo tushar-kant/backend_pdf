@@ -36,6 +36,65 @@ app.use(cors());
 // Multer storage configuration for handling file uploads
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
+const categories = {
+    industries: {
+        'Metals and Mining': ['Aluminium', 'Iron and Steel', 'Mining'],
+        'Power': ['Hydroelectric','Thermal','Solar'],
+        'Petrochemical': ['Chemical','Manufacturing'],
+        'Building Material': ['Cement','Glass'],
+        'Others': ['Automobile', 'FMCG', 'Construction', 'Oil and gas', 'Industrial equipment', 'Consumer Durables', 'Miscellaneous']
+    },
+    functions: {
+        'Operations': ['Opr', 'Prod'],
+        'Production': ['Opr', 'Prod'],
+        'Commercial': ['Comcl'],
+        'Finance': ['Fin'],
+        'HR': ['HR'],
+        'Others': ['Others']
+    },
+    experienceLevels: {
+        '20': 'CXO',
+        '10': 'Sr Mgt',
+        '5': 'Middle Mgt'
+    }
+};
+
+const categorie = {
+    HR: [
+        "Talent Acquisition", "Recruitment", "Employee Relations", "Performance Management", "HR Strategy",
+        "Onboarding", "Training and Development", "Compensation and Benefits", "Payroll Management", "Workforce Planning",
+        "Compliance", "HRIS", "Employee Engagement", "Succession Planning", "Diversity and Inclusion", "Labor Laws",
+        "Organizational Development", "Conflict Resolution", "HR Metrics and Analytics", "Policy Development",
+        "Employee Retention", "HR Business Partner", "Change Management", "Leadership Development", "Benefits Administration"
+    ],
+    Finance: [
+        "Financial Analysis", "Budgeting", "Forecasting", "Financial Reporting", "Accounting", "Financial Planning",
+        "Investment Management", "Risk Management", "Taxation", "Auditing", "Cost Analysis", "Revenue Recognition",
+        "Asset Management", "Treasury Management", "Financial Modeling", "Cash Flow Management", "Portfolio Management",
+        "Corporate Finance", "Mergers and Acquisitions", "Compliance", "Internal Controls", "Variance Analysis",
+        "Profit and Loss Management", "Financial Strategy", "Regulatory Reporting"
+    ],
+    Operations: [
+        "Operations", "Manpower management", "Production planning", "Shutdown maintenance", "Shift in charge",
+        "Plant in charge", "Safety", "DCS", "Project Management", "HSE", "Preventive Maintenance", "Maintenance",
+        "Breakdown Maintenance"
+    ],
+    Commercials: [
+        "Sales Management", "Business Development", "Market Analysis", "Client Relationship Management", "Contract Negotiation",
+        "Pricing Strategy", "Revenue Growth", "Key Account Management", "Sales Forecasting", "Lead Generation",
+        "Customer Retention", "Territory Management", "Competitive Analysis", "Product Launch", "Channel Management",
+        "Strategic Partnerships", "Sales Planning", "Market Expansion", "Sales Presentations", "Sales Training",
+        "Distribution Management", "Trade Marketing", "Sales Operations", "Digital Marketing", "E-commerce Management"
+    ],
+    Production: [
+        "Production Planning", "Manufacturing Processes", "Quality Control", "Lean Manufacturing", "Six Sigma",
+        "Process Optimization", "Assembly Line Management", "Production Scheduling", "Inventory Management",
+        "Supply Chain Coordination", "Cost Reduction", "Continuous Improvement", "Workflow Management", "Machine Operation",
+        "Safety Compliance", "Equipment Maintenance", "Production Efficiency", "Capacity Planning", "Quality Assurance",
+        "Resource Allocation", "Industrial Engineering", "Automation", "Production Reporting", "Just-in-Time Production",
+        "Root Cause Analysis"
+    ]
+};
 
 
 app.get("/", (req, res) => {
@@ -43,6 +102,69 @@ app.get("/", (req, res) => {
 });
 app.use('/auth', authRoutes);
 app.use('/file', fileRoutes);
+
+const determineLabel = (text) => {
+    for (const [category, keywords] of Object.entries(categories)) {
+        const keywordCount = keywords.reduce((count, keyword) => {
+            if (text.includes(keyword)) {
+                return count + 1;
+            }
+            return count;
+        }, 0);
+
+        // Assuming that if at least 5 keywords are present, it belongs to that category
+        if (keywordCount >= 5) {
+            return category;
+        }
+    }
+    return 'Unknown';
+};
+const categorizeIndustry = (text) => {
+    for (const [industry, sectors] of Object.entries(categories.industries)) {
+        if (text.includes(industry)) {
+            for (const sector of sectors) {
+                if (text.includes(sector)) {
+                    return { industry, sector };
+                }
+            }
+        }
+    }
+    return { industry: 'Others', sector: 'Miscellaneous' };
+};
+
+const categorizeFunction = (text) => {
+    for (const [func, keywords] of Object.entries(categories.functions)) {
+        for (const keyword of keywords) {
+            if (text.includes(keyword)) {
+                return func;
+            }
+        }
+    }
+    return 'Others';
+};
+
+// const categorizeExperience = (text) => {
+//     for (const [years, level] of Object.entries(categories.experienceLevels)) {
+//         if (text.includes(years)) {
+//             return level;
+//         }
+//     }
+//     return 'Unspecified';
+// };
+const categorizeExperience = (experienceText) => {
+    const yearsOfExperience = parseFloat(experienceText.replace(/[^0-9.]/g, '')); // Extract numerical part
+    if (!isNaN(yearsOfExperience)) {
+        if (yearsOfExperience >= 20) {
+            return 'CXO';
+        } else if (yearsOfExperience >= 10) {
+            return 'Sr Mgt';
+        } else if (yearsOfExperience >= 5) {
+            return 'Middle Mgt';
+        }
+    }
+    return 'Unspecified';
+};
+
 function extractFirstLine(text) {
     // Split text into lines
     const lines = text.split('\n');
@@ -53,8 +175,6 @@ function extractFirstLine(text) {
     // Return the first non-empty line, trimmed
     return firstLine ? firstLine.trim() : '';
 }
-
-
 
 function extractPhoneNo(text) {
     const match = text.match(/Phone\s*:\s*(\+?\d[\d\s-]{7,}\d)/i);
@@ -193,57 +313,52 @@ function extractDOB(text) {
 }
 app.post('/upload', upload.array('resume', 10), async (req, res) => {
     try {
-        // Extract text from PDF for each uploaded file
         const files = req.files;
-   
-
-        const experience = req.body.experience; // Assuming experience is sent in the request body
-        const filePromises = files.map(async (file,index) => {
+        const filePromises = files.map(async (file) => {
             const buffer = file.buffer;
             const data = await pdf(buffer);
             const text = data.text;
-            // console.log(text);
-            const dob = extractDOB(text);
-            console.log(dob);
+            
+            // Extract and categorize information
+            const { industry, sector } = categorizeIndustry(text);
+            const functionCategory = categorizeFunction(text);
             const experience = extractExperience(text);
-            const ctc = extractCTC(text);
 
-            const phoneNo = extractPhoneNo(text); // Extract phone number
-            const email = extractEmail(text); // Extract email
-            // console.log('Phone No:', phoneNo);
+            const experienceLevel = categorizeExperience(experience);
+            
+            // Extract other details
+            const dob = extractDOB(text);
+            // const experience = extractExperience(text);
+            const ctc = extractCTC(text);
+            const phoneNo = extractPhoneNo(text);
+            const email = extractEmail(text);
             const currentCompany = extractCurrentCompany(text).name;
             const previousCompany = extractPreviousCompany(text);
             const name = extractFirstLine(text);
+            
             // Store the original PDF file in MongoDB
             const newFile = new File({
                 filename: file.originalname,
                 contentType: file.mimetype,
                 data: buffer,
-                dob, // Storing DOB
+                dob,
                 experience,
-                phoneNo: phoneNo,
-                email: email,// Storing email
+                phoneNo,
+                email,
                 CTC: ctc,
                 currentCompany,
                 previousCompany,
-                name
-                
+                name,
+                industry,
+                sector,
+                functionCategory,
+                experienceLevel
             });
-            console.log("new",newFile);
             await newFile.save();
-
-            // Store the extracted text in MongoDB
-            // const newTextFile = new File({
-            //     filename: `${file.originalname}.txt`,
-            //     contentType: 'text/plain',
-            //     data: Buffer.from(text, 'utf-8')
-            // });
-            // await newTextFile.save();
 
             return { pdfFile: newFile };
         });
 
-        // Wait for all files to be processed
         const results = await Promise.all(filePromises);
 
         res.status(200).json({
@@ -255,6 +370,7 @@ app.post('/upload', upload.array('resume', 10), async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 app.get('/download', async (req, res) => {
     try {
         const { file } = req.query;
@@ -331,9 +447,7 @@ app.post('/search', async (req, res) => {
     }
 });
 
-// app.post('/search', async (req, res) => {
-//     const { queries, searchOption } = req.body;
-//     console.log('Search queries:', queries);
+
 
 //     try {
 //         // Retrieve PDF files from MongoDB
