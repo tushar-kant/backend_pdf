@@ -50,6 +50,13 @@ const categories = {
             "Plant in charge", "Safety", "DCS", "Project Management", "HSE", "Preventive Maintenance", "Maintenance",
             "Breakdown Maintenance"
         ],
+        'HR': [
+            "Talent Acquisition", "Recruitment", "Employee Relations", "Performance Management", "HR Strategy",
+            "Onboarding", "Training and Development", "Compensation and Benefits", "Payroll Management", "Workforce Planning",
+            "Compliance", "HRIS", "Employee Engagement", "Succession Planning", "Diversity and Inclusion", "Labor Laws",
+            "Organizational Development", "Conflict Resolution", "HR Metrics and Analytics", "Policy Development",
+            "Employee Retention", "HR Business Partner", "Change Management", "Leadership Development", "Benefits Administration"
+        ],
         'Production': [
             "Production Planning", "Manufacturing Processes", "Quality Control", "Lean Manufacturing", "Six Sigma",
             "Process Optimization", "Assembly Line Management", "Production Scheduling", "Inventory Management",
@@ -72,13 +79,7 @@ const categories = {
             "Corporate Finance", "Mergers and Acquisitions", "Compliance", "Internal Controls", "Variance Analysis",
             "Profit and Loss Management", "Financial Strategy", "Regulatory Reporting"
         ],
-        'HR': [
-            "Talent Acquisition", "Recruitment", "Employee Relations", "Performance Management", "HR Strategy",
-            "Onboarding", "Training and Development", "Compensation and Benefits", "Payroll Management", "Workforce Planning",
-            "Compliance", "HRIS", "Employee Engagement", "Succession Planning", "Diversity and Inclusion", "Labor Laws",
-            "Organizational Development", "Conflict Resolution", "HR Metrics and Analytics", "Policy Development",
-            "Employee Retention", "HR Business Partner", "Change Management", "Leadership Development", "Benefits Administration"
-        ],
+       
         'Others': ['Others']
     },
     experienceLevels: {
