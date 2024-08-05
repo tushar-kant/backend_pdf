@@ -162,16 +162,38 @@ const categorizeIndustry = (text) => {
     return { industry: 'Others', sector: 'Miscellaneous' };
 };
 
+// const categorizeFunction = (text) => {
+//     for (const [func, keywords] of Object.entries(categories.functions)) {
+//         for (const keyword of keywords) {
+//             if (text.includes(keyword)) {
+//                 return func;
+//             }
+//         }
+//     }
+//     return 'Others';
+// };
 const categorizeFunction = (text) => {
+    const lowerText = text.toLowerCase();
+    const matchedFunctions = new Set();
+
     for (const [func, keywords] of Object.entries(categories.functions)) {
+        let keywordMatchCount = 0;
+        
         for (const keyword of keywords) {
-            if (text.includes(keyword)) {
-                return func;
+            const lowerKeyword = keyword.toLowerCase();
+            if (lowerText.includes(lowerKeyword)) {
+                keywordMatchCount++;
+                if (keywordMatchCount >= 2) {
+                    matchedFunctions.add(func);
+                    break; // Stop checking further keywords for this function once the minimum match is found
+                }
             }
         }
     }
-    return 'Others';
+
+    return matchedFunctions.size > 0 ? Array.from(matchedFunctions) : ['Others'];
 };
+
 
 // const categorizeExperience = (text) => {
 //     for (const [years, level] of Object.entries(categories.experienceLevels)) {
@@ -351,7 +373,7 @@ app.post('/upload', upload.array('resume', 10), async (req, res) => {
             
             // Extract and categorize information
             const { industry, sector } = categorizeIndustry(text);
-            const functionCategory = categorizeFunction(text);
+            const functionCategories = categorizeFunction(text);
             const experience = extractExperience(text);
 
             const experienceLevel = categorizeExperience(experience);
@@ -381,7 +403,7 @@ app.post('/upload', upload.array('resume', 10), async (req, res) => {
                 name,
                 industry,
                 sector,
-                functionCategory,
+                functionCategory: functionCategories, // Store multiple function categories
                 experienceLevel
             });
             await newFile.save();

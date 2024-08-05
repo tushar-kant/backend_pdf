@@ -16,7 +16,7 @@ const fileSchema = new mongoose.Schema({
     name: String,
     industry: String, // Adding industry field
     sector: String, // Adding sector field
-    functionCategory: String, // Adding function category field
+    functionCategory: [String], // Changed to array of strings to accommodate multiple categories
     experienceLevel: String, // Adding experience level field
 }, { timestamps: true }); // Add timestamps option
 
