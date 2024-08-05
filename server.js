@@ -45,11 +45,40 @@ const categories = {
         'Others': ['Automobile', 'FMCG', 'Construction', 'Oil and gas', 'Industrial equipment', 'Consumer Durables', 'Miscellaneous']
     },
     functions: {
-        'Operations': ['Opr', 'Prod'],
-        'Production': ['Opr', 'Prod'],
-        'Commercial': ['Comcl'],
-        'Finance': ['Fin'],
-        'HR': ['HR'],
+        'Operations': [
+            "Operations", "Manpower management", "Production planning", "Shutdown maintenance", "Shift in charge",
+            "Plant in charge", "Safety", "DCS", "Project Management", "HSE", "Preventive Maintenance", "Maintenance",
+            "Breakdown Maintenance"
+        ],
+        'Production': [
+            "Production Planning", "Manufacturing Processes", "Quality Control", "Lean Manufacturing", "Six Sigma",
+            "Process Optimization", "Assembly Line Management", "Production Scheduling", "Inventory Management",
+            "Supply Chain Coordination", "Cost Reduction", "Continuous Improvement", "Workflow Management", "Machine Operation",
+            "Safety Compliance", "Equipment Maintenance", "Production Efficiency", "Capacity Planning", "Quality Assurance",
+            "Resource Allocation", "Industrial Engineering", "Automation", "Production Reporting", "Just-in-Time Production",
+            "Root Cause Analysis"
+        ],
+        'Commercial': [
+            "Sales Management", "Business Development", "Market Analysis", "Client Relationship Management", "Contract Negotiation",
+            "Pricing Strategy", "Revenue Growth", "Key Account Management", "Sales Forecasting", "Lead Generation",
+            "Customer Retention", "Territory Management", "Competitive Analysis", "Product Launch", "Channel Management",
+            "Strategic Partnerships", "Sales Planning", "Market Expansion", "Sales Presentations", "Sales Training",
+            "Distribution Management", "Trade Marketing", "Sales Operations", "Digital Marketing", "E-commerce Management"
+        ],
+        'Finance': [
+            "Financial Analysis", "Budgeting", "Forecasting", "Financial Reporting", "Accounting", "Financial Planning",
+            "Investment Management", "Risk Management", "Taxation", "Auditing", "Cost Analysis", "Revenue Recognition",
+            "Asset Management", "Treasury Management", "Financial Modeling", "Cash Flow Management", "Portfolio Management",
+            "Corporate Finance", "Mergers and Acquisitions", "Compliance", "Internal Controls", "Variance Analysis",
+            "Profit and Loss Management", "Financial Strategy", "Regulatory Reporting"
+        ],
+        'HR': [
+            "Talent Acquisition", "Recruitment", "Employee Relations", "Performance Management", "HR Strategy",
+            "Onboarding", "Training and Development", "Compensation and Benefits", "Payroll Management", "Workforce Planning",
+            "Compliance", "HRIS", "Employee Engagement", "Succession Planning", "Diversity and Inclusion", "Labor Laws",
+            "Organizational Development", "Conflict Resolution", "HR Metrics and Analytics", "Policy Development",
+            "Employee Retention", "HR Business Partner", "Change Management", "Leadership Development", "Benefits Administration"
+        ],
         'Others': ['Others']
     },
     experienceLevels: {
