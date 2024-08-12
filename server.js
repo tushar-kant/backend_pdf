@@ -53,8 +53,8 @@ const categories = {
             "Breakdown Maintenance"
         ],
         'HR': [
-            "HR","Talent Acquisition", "Recruitment", "Employee Relations", "Performance Management", "HR Strategy",
-            "Onboarding", "Training and Development", "Compensation and Benefits", "Payroll Management", "Workforce Planning",
+            "Talent Acquisition", "Recruitment", "Employee Relations", "Performance Management", "HR Strategy",
+            "Onboarding", "Training and Development", "Compensation and Benefits", "Payroll", "Workforce Planning",
             "Compliance", "HRIS", "Employee Engagement", "Succession Planning", "Diversity and Inclusion", "Labor Laws",
             "Organizational Development", "Conflict Resolution", "HR Metrics and Analytics", "Policy Development",
             "Employee Retention", "HR Business Partner", "Change Management", "Leadership Development", "Benefits Administration"
@@ -76,7 +76,7 @@ const categories = {
             "Distribution Management", "Trade Marketing", "Sales Operations", "Digital Marketing", "E-commerce Management"
         ],
         'Finance': [
-            "Financial",
+         
             "Financial Analysis", "Budgeting", "Forecasting", "Financial Reporting", "Accounting", "Financial Planning",
             "Investment Management", "Risk Management", "Taxation", "Auditing", "Cost Analysis", "Revenue Recognition",
             "Asset Management", "Treasury Management", "Financial Modeling", "Cash Flow Management", "Portfolio Management",
