@@ -15,6 +15,7 @@ const File = require('./models/file');
 const connectDB = require('./config/database');
 const authRoutes = require('./routes/authRoutes');
 const fileRoutes = require('./routes/fileRoutes');
+const emailRoutes = require('./routes/emailRoutes');
 
 
 
@@ -31,6 +32,7 @@ app.use(express.json());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors());
+app.use('/email', emailRoutes);
 
 
 // Multer storage configuration for handling file uploads
@@ -51,13 +53,14 @@ const categories = {
             "Breakdown Maintenance"
         ],
         'HR': [
-            "Talent Acquisition", "Recruitment", "Employee Relations", "Performance Management", "HR Strategy",
+            "HR","Talent Acquisition", "Recruitment", "Employee Relations", "Performance Management", "HR Strategy",
             "Onboarding", "Training and Development", "Compensation and Benefits", "Payroll Management", "Workforce Planning",
             "Compliance", "HRIS", "Employee Engagement", "Succession Planning", "Diversity and Inclusion", "Labor Laws",
             "Organizational Development", "Conflict Resolution", "HR Metrics and Analytics", "Policy Development",
             "Employee Retention", "HR Business Partner", "Change Management", "Leadership Development", "Benefits Administration"
         ],
         'Production': [
+            "Production",
             "Production Planning", "Manufacturing Processes", "Quality Control", "Lean Manufacturing", "Six Sigma",
             "Process Optimization", "Assembly Line Management", "Production Scheduling", "Inventory Management",
             "Supply Chain Coordination", "Cost Reduction", "Continuous Improvement", "Workflow Management", "Machine Operation",
@@ -73,6 +76,7 @@ const categories = {
             "Distribution Management", "Trade Marketing", "Sales Operations", "Digital Marketing", "E-commerce Management"
         ],
         'Finance': [
+            "Financial",
             "Financial Analysis", "Budgeting", "Forecasting", "Financial Reporting", "Accounting", "Financial Planning",
             "Investment Management", "Risk Management", "Taxation", "Auditing", "Cost Analysis", "Revenue Recognition",
             "Asset Management", "Treasury Management", "Financial Modeling", "Cash Flow Management", "Portfolio Management",
@@ -89,42 +93,6 @@ const categories = {
     }
 };
 
-const categorie = {
-    HR: [
-        "Talent Acquisition", "Recruitment", "Employee Relations", "Performance Management", "HR Strategy",
-        "Onboarding", "Training and Development", "Compensation and Benefits", "Payroll Management", "Workforce Planning",
-        "Compliance", "HRIS", "Employee Engagement", "Succession Planning", "Diversity and Inclusion", "Labor Laws",
-        "Organizational Development", "Conflict Resolution", "HR Metrics and Analytics", "Policy Development",
-        "Employee Retention", "HR Business Partner", "Change Management", "Leadership Development", "Benefits Administration"
-    ],
-    Finance: [
-        "Financial Analysis", "Budgeting", "Forecasting", "Financial Reporting", "Accounting", "Financial Planning",
-        "Investment Management", "Risk Management", "Taxation", "Auditing", "Cost Analysis", "Revenue Recognition",
-        "Asset Management", "Treasury Management", "Financial Modeling", "Cash Flow Management", "Portfolio Management",
-        "Corporate Finance", "Mergers and Acquisitions", "Compliance", "Internal Controls", "Variance Analysis",
-        "Profit and Loss Management", "Financial Strategy", "Regulatory Reporting"
-    ],
-    Operations: [
-        "Operations", "Manpower management", "Production planning", "Shutdown maintenance", "Shift in charge",
-        "Plant in charge", "Safety", "DCS", "Project Management", "HSE", "Preventive Maintenance", "Maintenance",
-        "Breakdown Maintenance"
-    ],
-    Commercials: [
-        "Sales Management", "Business Development", "Market Analysis", "Client Relationship Management", "Contract Negotiation",
-        "Pricing Strategy", "Revenue Growth", "Key Account Management", "Sales Forecasting", "Lead Generation",
-        "Customer Retention", "Territory Management", "Competitive Analysis", "Product Launch", "Channel Management",
-        "Strategic Partnerships", "Sales Planning", "Market Expansion", "Sales Presentations", "Sales Training",
-        "Distribution Management", "Trade Marketing", "Sales Operations", "Digital Marketing", "E-commerce Management"
-    ],
-    Production: [
-        "Production Planning", "Manufacturing Processes", "Quality Control", "Lean Manufacturing", "Six Sigma",
-        "Process Optimization", "Assembly Line Management", "Production Scheduling", "Inventory Management",
-        "Supply Chain Coordination", "Cost Reduction", "Continuous Improvement", "Workflow Management", "Machine Operation",
-        "Safety Compliance", "Equipment Maintenance", "Production Efficiency", "Capacity Planning", "Quality Assurance",
-        "Resource Allocation", "Industrial Engineering", "Automation", "Production Reporting", "Just-in-Time Production",
-        "Root Cause Analysis"
-    ]
-};
 
 
 app.get("/", (req, res) => {
@@ -183,7 +151,7 @@ const categorizeFunction = (text) => {
             const lowerKeyword = keyword.toLowerCase();
             if (lowerText.includes(lowerKeyword)) {
                 keywordMatchCount++;
-                if (keywordMatchCount >= 2) {
+                if (keywordMatchCount >= 1) {
                     matchedFunctions.add(func);
                     break; // Stop checking further keywords for this function once the minimum match is found
                 }
