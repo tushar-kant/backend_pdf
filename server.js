@@ -151,7 +151,7 @@ const categorizeFunction = (text) => {
             const lowerKeyword = keyword.toLowerCase();
             if (lowerText.includes(lowerKeyword)) {
                 keywordMatchCount++;
-                if (keywordMatchCount >= 1) {
+                if (keywordMatchCount >= 2) {
                     matchedFunctions.add(func);
                     break; // Stop checking further keywords for this function once the minimum match is found
                 }
