@@ -60,7 +60,6 @@ const categories = {
             "Employee Retention", "HR Business Partner", "Change Management", "Leadership Development", "Benefits Administration"
         ],
         'Production': [
-            "Production",
             "Production Planning", "Manufacturing Processes", "Quality Control", "Lean Manufacturing", "Six Sigma",
             "Process Optimization", "Assembly Line Management", "Production Scheduling", "Inventory Management",
             "Supply Chain Coordination", "Cost Reduction", "Continuous Improvement", "Workflow Management", "Machine Operation",
