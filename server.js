@@ -8,33 +8,23 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const ExcelJS = require('exceljs');  // Add this line to import ExcelJS
 
-
 const User = require('./models/user');
 const File = require('./models/file');
-
 const connectDB = require('./config/database');
 const authRoutes = require('./routes/authRoutes');
 const fileRoutes = require('./routes/fileRoutes');
 const emailRoutes = require('./routes/emailRoutes');
 
-
-
 require('dotenv').config(); // Load environment variables from .env file
-
 // Connect to MongoDB
 connectDB();
-
 const app = express();
 const port = process.env.PORT || 3030;
-
-
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors());
 app.use('/email', emailRoutes);
-
-
 // Multer storage configuration for handling file uploads
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -92,8 +82,6 @@ const categories = {
     }
 };
 
-
-
 app.get("/", (req, res) => {
     res.send("Hello ,its working");
 });
@@ -128,7 +116,6 @@ const categorizeIndustry = (text) => {
     }
     return { industry: 'Others', sector: 'Miscellaneous' };
 };
-
 // const categorizeFunction = (text) => {
 //     for (const [func, keywords] of Object.entries(categories.functions)) {
 //         for (const keyword of keywords) {
@@ -160,7 +147,6 @@ const categorizeFunction = (text) => {
 
     return matchedFunctions.size > 0 ? Array.from(matchedFunctions) : ['Others'];
 };
-
 
 // const categorizeExperience = (text) => {
 //     for (const [years, level] of Object.entries(categories.experienceLevels)) {
@@ -245,8 +231,6 @@ function extractCurrentCompany(text) {
     return { name: 'Unknown', timeframe: '' };
 }
 
-
-
 function extractPreviousCompany(text) {
     const currentCompanyInfo = extractCurrentCompany(text);
     const currentCompanyIndex = text.indexOf(currentCompanyInfo.name);
@@ -268,8 +252,6 @@ function extractPreviousCompany(text) {
     }
     return previousCompany.name;
 }
-
-
 function extractExperience(text) {
     // Regular expression pattern to find numbers near "experience"
     const nearExperiencePattern = /(?:\b\d+\b\s*(?:\+)?\s*(?:years?|yrs?))/ig;
